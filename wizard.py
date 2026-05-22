@@ -126,6 +126,52 @@ def section_resources() -> dict:
     }
 
 
+def section_cloud() -> dict:
+    title("── 3/4  Configuration Cloud")
+
+    provider = choose("Provider cloud", [
+        ("aws",   "AWS   — Amazon Web Services"),
+        ("gcp",   "GCP   — Google Cloud Platform"),
+        ("azure", "Azure — Microsoft Azure"),
+    ], default="aws")
+
+    default_regions = {"aws": "eu-west-1", "gcp": "europe-west1", "azure": "westeurope"}
+    region = ask("Région", default=default_regions[provider])
+
+    profile = choose("Profil d'instance", [
+        ("xs", "XS — t3.micro / e2-micro / B1s       (test, outil interne)"),
+        ("s",  "S  — t3.small / e2-small / B2s       (microservice)"),
+        ("m",  "M  — t3.medium / e2-medium / B4ms    (application standard)"),
+        ("l",  "L  — t3.large / e2-standard-2 / D4s  (traitement intensif)"),
+        ("xl", "XL — t3.xlarge / e2-standard-4 / D8s (application lourde)"),
+    ], default="s")
+
+    port = ask("Port applicatif", default="8080")
+    lb   = confirm("Activer un Load Balancer ?", default=True)
+    tls  = confirm("Activer HTTPS ?",            default=True)
+
+    db = confirm("Activer une base de données managée ?", default=False)
+    db_engine, db_version = "", ""
+    if db:
+        db_engine = choose("Moteur de base de données", [
+            ("postgres", "PostgreSQL"),
+            ("mysql",    "MySQL"),
+        ], default="postgres")
+        db_version = ask("Version", default="15" if db_engine == "postgres" else "8.0")
+
+    return {
+        "cloudProvider":      provider,
+        "cloudRegion":        region,
+        "cloudProfile":       profile,
+        "appPort":            int(port),
+        "enableLoadBalancer": lb,
+        "enableHttps":        tls,
+        "enableDatabase":     db,
+        "dbEngine":           db_engine,
+        "dbVersion":          db_version,
+    }
+
+
 def section_advanced() -> dict:
     title("── 4/4  Options avancées")
 
@@ -205,12 +251,21 @@ Répondez aux questions pour générer votre chart Helm.
 Appuyez sur {BOLD}Entrée{RESET} pour accepter la valeur par défaut {DIM}[entre crochets]{RESET}.
 """)
 
-    values: dict = {"target": "kubernetes"}
+    target = choose("Cible de déploiement", [
+        ("kubernetes", "Kubernetes — génère un Helm chart"),
+        ("cloud",      "Cloud      — génère du Terraform (AWS / GCP / Azure)"),
+        ("vm",         "VM         — non disponible pour l'instant"),
+    ], default="kubernetes")
+
+    values: dict = {"target": target}
 
     try:
         values |= section_identity()
-        values |= section_image(values)
-        values |= section_resources()
+        if target == "kubernetes":
+            values |= section_image(values)
+            values |= section_resources()
+        elif target == "cloud":
+            values |= section_cloud()
         values |= section_advanced()
     except KeyboardInterrupt:
         print(f"\n\n{DIM}Génération annulée.{RESET}\n")
