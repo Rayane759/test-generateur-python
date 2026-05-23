@@ -258,21 +258,55 @@ def section_advanced() -> dict:
 
 def show_summary(values: dict) -> None:
     title("══ Récapitulatif ══════════════════════════════")
+
+    # Champs communs à toutes les cibles
     rows = [
+        ("Cible",         values["target"]),
         ("Application",   values["appName"]),
         ("Équipe",        values["teamName"]),
         ("Environnement", values["environnement"]),
-        ("Image",         f"{values['imageRepository']}:{values['imageTag']}"),
-        ("Profil",        values["resourceProfile"]),
-        ("Port",          str(values["servicePort"])),
-        ("Exposition",    values["exposureProfile"] +
-                          (f" → {values['publicHost']}" if values.get("publicHost") else "")),
-        ("Health probes", "oui" if values["enableHealthProbes"] else "non"),
-        ("Autoscaling",   "oui" if values["enableAutoscaling"] else "non"),
-        ("Réplicas",      str(values["replicaCount"])),
-        ("Workload",      values["workloadType"]),
-        ("Env vars",      ", ".join(values["configEnv"].keys()) or "aucune"),
     ]
+
+    target = values["target"]
+
+    if target == "kubernetes":
+        rows += [
+            ("Image",         f"{values.get('imageRepository', '')}:{values.get('imageTag', '')}"),
+            ("Profil",        values.get("resourceProfile", "")),
+            ("Port",          str(values.get("servicePort", ""))),
+            ("Exposition",    values.get("exposureProfile", "") +
+                              (f" → {values['publicHost']}" if values.get("publicHost") else "")),
+            ("Health probes", "oui" if values.get("enableHealthProbes") else "non"),
+            ("Autoscaling",   "oui" if values.get("enableAutoscaling") else "non"),
+            ("Réplicas",      str(values.get("replicaCount", ""))),
+            ("Workload",      values.get("workloadType", "")),
+            ("Env vars",      ", ".join(values.get("configEnv", {}).keys()) or "aucune"),
+        ]
+
+    elif target == "cloud":
+        rows += [
+            ("Provider",      values.get("cloudProvider", "").upper()),
+            ("Région",        values.get("cloudRegion", "")),
+            ("Profil",        values.get("cloudProfile", "")),
+            ("Port",          str(values.get("appPort", ""))),
+            ("Load Balancer", "oui" if values.get("enableLoadBalancer") else "non"),
+            ("HTTPS",         "oui" if values.get("enableHttps") else "non"),
+            ("Base de données", f"oui ({values['dbEngine']} {values['dbVersion']})"
+                                if values.get("enableDatabase") else "non"),
+            ("Env vars",      ", ".join(values.get("configEnv", {}).keys()) or "aucune"),
+        ]
+
+    elif target == "vm":
+        rows += [
+            ("Hyperviseur",   values.get("hypervisor", "")),
+            ("Profil VM",     values.get("vmProfile", "")),
+            ("Réseau",        values.get("vmNetwork", "")),
+            ("Artefact",      values.get("artifactFormat", "")),
+            ("Nexus",         f"{values.get('nexusUrl', '')}/{values.get('nexusRepository', '')}"),
+            ("Rundeck",       values.get("rundeckUrl", "")),
+            ("Env vars",      ", ".join(values.get("configEnv", {}).keys()) or "aucune"),
+        ]
+
     width = max(len(k) for k, _ in rows)
     for k, v in rows:
         print(f"  {DIM}{k:<{width}}{RESET}  {v}")
