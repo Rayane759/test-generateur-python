@@ -126,6 +126,49 @@ def section_resources() -> dict:
     }
 
 
+def section_vm() -> dict:
+    title("── 3/4  Configuration VM on-premise")
+
+    hypervisor = choose("Hyperviseur", [
+        ("vsphere", "vSphere (VMware)"),
+        ("libvirt", "libvirt (KVM/QEMU)"),
+    ], default="vsphere")
+
+    profile = choose("Profil de VM", [
+        ("xs", "XS —  1 vCPU /  1 Go RAM /  20 Go disque"),
+        ("s",  "S  —  2 vCPU /  2 Go RAM /  40 Go disque"),
+        ("m",  "M  —  4 vCPU /  4 Go RAM /  80 Go disque"),
+        ("l",  "L  —  8 vCPU /  8 Go RAM / 160 Go disque"),
+        ("xl", "XL — 16 vCPU / 16 Go RAM / 320 Go disque"),
+    ], default="s")
+
+    network = ask("Réseau VM", default="VM Network")
+
+    hint("Format de l'artefact applicatif stocké dans Nexus")
+    artifact_format = choose("Format de l'artefact", [
+        ("jar",    "JAR  — application Java (Spring Boot…)"),
+        ("docker", "Docker — image conteneur"),
+        ("rpm",    "RPM  — paquet Linux"),
+    ], default="jar")
+
+    nexus_url  = ask("URL Nexus",       default="https://nexus.example.fr")
+    nexus_repo = ask("Repository Nexus", default="releases")
+
+    rundeck_url     = ask("URL Rundeck",       default="https://rundeck.example.fr")
+    rundeck_project = ask("Projet Rundeck",    default="")
+
+    return {
+        "hypervisor":       hypervisor,
+        "vmProfile":        profile,
+        "vmNetwork":        network,
+        "artifactFormat":   artifact_format,
+        "nexusUrl":         nexus_url,
+        "nexusRepository":  nexus_repo,
+        "rundeckUrl":       rundeck_url,
+        "rundeckProject":   rundeck_project,
+    }
+
+
 def section_cloud() -> dict:
     title("── 3/4  Configuration Cloud")
 
@@ -254,7 +297,7 @@ Appuyez sur {BOLD}Entrée{RESET} pour accepter la valeur par défaut {DIM}[entre
     target = choose("Cible de déploiement", [
         ("kubernetes", "Kubernetes — génère un Helm chart"),
         ("cloud",      "Cloud      — génère du Terraform (AWS / GCP / Azure)"),
-        ("vm",         "VM         — non disponible pour l'instant"),
+        ("vm",         "VM         — génère Terraform + Ansible + Rundeck"),
     ], default="kubernetes")
 
     values: dict = {"target": target}
@@ -266,6 +309,8 @@ Appuyez sur {BOLD}Entrée{RESET} pour accepter la valeur par défaut {DIM}[entre
             values |= section_resources()
         elif target == "cloud":
             values |= section_cloud()
+        elif target == "vm":
+            values |= section_vm()
         values |= section_advanced()
     except KeyboardInterrupt:
         print(f"\n\n{DIM}Génération annulée.{RESET}\n")
